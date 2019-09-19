@@ -1,7 +1,5 @@
 # Please do not use other libraries except for numpy
 import numpy as np
-
-
 class Ridge:
 
     def __init__(self):
@@ -12,25 +10,28 @@ class Ridge:
 
         n, m = X.shape
         self.coef = np.zeros(m)
-        if coef_prior == None:
+        if coef_prior:
+            print(f"coef_prior was evaluated as falsy")
             coef_prior = np.zeros(m)
 
         # a) normalize X
-        x_mu = 
-        x_sigma = ...
-        X = ... # normalized X
+        x_mu =  np.mean(X,axis=0) #reminder that axis 0 is column wise mean 
+        x_sigma = np.std(X,axis=0) 
+        X = (X-x_mu)/x_sigma 
+        print(f"Column wise mean: {np.mean(X,axis=0 )} ") 
+        print(f"Column wise std: {np.std(X,axis=0)}")
 
         # b) adjust coef_prior according to the normalization parameters
-        coef_prior = ...
+        coef_prior = None
 
         # c) get coefficients
         ...
-        self.intercept = ...
-        self.coef = ...
+        self.intercept = None 
+        self.coef = None
 
         # d) adjust coefficients for de-normalized X
-        self.intercept = ... 
-        self.coef = ...
+        self.intercept = None
+        self.coef = None
 
         return 0
 
@@ -61,4 +62,4 @@ class ForwardStagewise:
         return 0
 
     def get_coef_path(self):
-return self.intercept, self.path
+        return self.intercept, self.path

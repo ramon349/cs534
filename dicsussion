@@ -1,0 +1,5 @@
+Potential Test cases 
+
+1. Make sure that you chekc the number of priors is equivalent to the dimensionality of the vector.
+    1.a  would this account for the fact whether somone uses priorrs for the bias 
+
