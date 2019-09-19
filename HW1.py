@@ -10,9 +10,9 @@ class Ridge:
 
         n, m = X.shape
         self.coef = np.zeros(m)
-        if coef_prior:
+        if not coef_prior :
             print(f"coef_prior was evaluated as falsy")
-            coef_prior = np.zeros(m)
+            coef_prior = np.zeros((m,))
 
         # a) normalize X
         x_mu =  np.mean(X,axis=0) #reminder that axis 0 is column wise mean 
@@ -22,20 +22,23 @@ class Ridge:
         print(f"Column wise std: {np.std(X,axis=0)}")
 
         # b) adjust coef_prior according to the normalization parameters
-        coef_prior = None
+        #coef_prior = None
 
         # c) get coefficients
-        ...
-        self.intercept = None 
-        self.coef = None
+        A = np.linalg.inv(np.dot(X.T,X) - lmbd)
+        print(lmbd)
+        print(coef_prior)
+        B = np.dot(X.T,y) - lmbd*coef_prior
+        self.coef = np.dot(A,B)
+        self.intercept = 0
 
         # d) adjust coefficients for de-normalized X
-        self.intercept = None
-        self.coef = None
+        # no idea if this works righ 
+        # self.coef= (x_sigma/np.std(y)) * self.coef
+        #self.intercept = None
+        #self.coef = None
+    def get_coef(self): 
 
-        return 0
-
-    def get_coef(self):
         return self.intercept, self.coef
 
 class ForwardStagewise:

@@ -2,4 +2,5 @@ Potential Test cases
 
 1. Make sure that you chekc the number of priors is equivalent to the dimensionality of the vector.
     1.a  would this account for the fact whether somone uses priorrs for the bias 
-
+2. Make sure vector is normalized properly 
+    2.a by normalize do we mean sent to range 0 to 1 or mean 0 std 1 
