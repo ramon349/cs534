@@ -76,12 +76,11 @@ class ForwardStagewise:
 
         return 0 
     def update_exclusion(self,selected_var):
-        if self.cannot_link: 
-            for link_group in self.cannot_link:
-                if selected_var in link_group: 
-                    set_diff = set(link_group) -set([selected_var]) 
-                    [self.excluded.add(e) for e in set_diff]
-                    print(self.excluded)
+        for link_group in self.cannot_link:
+            if selected_var in link_group: 
+                set_diff = set(link_group) -set([selected_var]) 
+                [self.excluded.add(e) for e in set_diff]
+                print(self.excluded)
 
     def is_excluded(self,idx): 
         return idx in self.excluded
