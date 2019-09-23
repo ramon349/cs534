@@ -1,7 +1,7 @@
 # Please do not use other libraries except for numpy
 import numpy as np
+import matplotlib.pyplot as plt
 class Ridge:
-
     def __init__(self):
         self.intercept = 0
         self.coef = None
@@ -12,21 +12,29 @@ class Ridge:
         # a) normalize X
         x_mu =  np.mean(X,axis=0) #reminder that axis 0 is column wise mean 
         x_sigma = np.std(X,axis=0)
-        X = (X-x_mu)/x_sigma 
+        X = np.true_divide( X-x_mu,x_sigma )
         #normalize y   
         y_mu = np.mean(y) 
         y_sigma = np.std(y) 
-        y = (y - y_mu) / y_sigma
+        y = np.true_divide(y - y_mu,y_sigma)
         self.coef = np.zeros(m) 
         # b) adjust coef_prior according to the normalization parameters
         coef_prior = np.multiply(np.true_divide(x_sigma,y_sigma), coef_prior)
         # c) get coefficients
-        A = np.linalg.inv(np.dot(X.T,X) - lmbd)
-        B = np.dot(X.T,y) - lmbd*coef_prior
+        A = np.linalg.inv(np.dot(X.T,X)  + lmbd*np.identity(m) )
+        B = np.dot(X.T,y) + lmbd*coef_prior
         out = np.dot(A,B)
-        # d) adjust coefficients for de-normalized X
+        # d) adjust coefficients for de-normalized X 
         self.intercept = y_mu
-        self.coef =   np.multiply(np.true_divide(y_sigma,x_sigma),out)
+        denormalize_factor = np.true_divide(y_sigma,x_sigma)
+        self.coef =   np.multiply(denormalize_factor,out) 
+        """"
+        This implementation does not penalize the intercept. 
+        Since data is centered we calculate coefficients using centered data 
+        Then calculate the intercept using the mean y value 
+        Reference:  Hastie,Trevorl et al; Elements of Statistical Learning; Page 64 
+
+        """
     def get_coef(self): 
         print(self.intercept)
         return (self.intercept, self.coef)
@@ -44,16 +52,35 @@ class ForwardStagewise:
         # a) normalize X
         x_mu  = np.mean(X,axis=0)
         x_sig =  np.std(X,axis=0) 
+        y_mu = np.mean(y)
+        y_sig = np.std(y)
         X =  (X - x_mu)/x_sig
-        y =  y- np.mean(y) 
-        n,m = X.shape
-        # b-1) implement incremental forwward-stagewise
-        nsteps = 100000
-        delta = .0001
+        y =  (y-y_mu )/y_sig
+        # b-1) implement incremental foryward-stagewise
+        # b-2) implement cannot-link constraints
+        # d) construct the "path" numpy array
+        (beta,self.path) =  self.ForwardStagewise(X,y,max_iter,epsilon)
+        std_factor = np.true_divide(y_sig,x_sig) 
+        # c) adjust coefficients for de-normalized X
+        for i in range(self.path.shape[0]):
+            self.path[i,:] = np.multiply(self.path[i,:],std_factor)
+            #rows are taken back to original space
+        self.intercept = y_mu
+        self.coef =   np.multiply(np.true_divide(y_sig,x_sig),beta)
+
+    def ForwardStagewise(self,X,y,nsteps,delta):
+        """ Implementation of incremental forward stagewise regression 
+        Code structure taken from lecture sldies and class book. 
+        Reference:  Hastie,Trevorl et al; Elements of Statistical Learning; Page 64 
+
+
+        """
+        r = y 
+        n,m =  X.shape
         beta = np.zeros(m)
-        r = y
-        for s in range(nsteps):
-            corr_best,j_best, gamma_best =  0,0, 0
+        path =  np.zeros((nsteps+1,m))
+        for s in range(1,nsteps+1):
+            corr_best,j_best =  0,0
             for j in range(m):
                 xj_norm = np.linalg.norm(X[:,j],2) 
                 r_norm = np.linalg.norm(r,2) 
@@ -62,27 +89,28 @@ class ForwardStagewise:
                    j_best,corr_best = j,corr_j 
                    self.update_exclusion(j)
             beta[j_best] += delta*np.sign(np.dot(X[:,j],r)) 
+            path[s,:] =  beta
             r -= beta[j_best]*X[:,j_best]
-        print(beta)
-        # b-2) implement cannot-link constraints
+        return (beta,path)
 
-        # c) adjust coefficients for de-normalized X
-
-        # d) construct the "path" numpy array
-        #     path: l-by-m array,
-        #               where l is the total number of iterations
-        #               m is the number of features in X.
-        #               The first row, path[0,:], should be all zeros.
-
-        return 0 
     def update_exclusion(self,selected_var):
+        """ check cannot link set to update excluded variable set
+       input: 
+            selected_var: Variable index found to be most useful 
+        
+        """
+        sel_var = set([selected_var]) #selected variable is turned into a single
         for link_group in self.cannot_link:
             if selected_var in link_group: 
-                set_diff = set(link_group) -set([selected_var]) 
-                [self.excluded.add(e) for e in set_diff]
-                print(self.excluded)
+                set_diff = set(link_group) - sel_var #variables to exclude using set diff 
+                [self.excluded.add(e) for e in set_diff] #add each variable to exclusion list
 
-    def is_excluded(self,idx): 
+    def is_excluded(self,idx):
+        """ Check set of exlcuded variables for membership
+        input: 
+            idx: index of variable we are interested in adding
+        """
         return idx in self.excluded
+
     def get_coef_path(self):
         return self.intercept, self.path
