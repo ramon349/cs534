@@ -46,51 +46,80 @@ class ForwardStagewise:
         self.path = []
         self.excluded = set()  
         self.cannot_link = []
-    def fit(self, X, y, cannot_link=[], epsilon=1e-5, max_iter=1000):
+    def fit(self, X, y, cannot_link=[], epsilon=.01, max_iter=100,alg=2):
         self.cannot_link= cannot_link
         self.excluded = set()
-        # a) normalize X
+        # a) normalize X 
         x_mu  = np.mean(X,axis=0)
         x_sig =  np.std(X,axis=0) 
         y_mu = np.mean(y)
         y_sig = np.std(y)
-        X =  (X - x_mu)/x_sig
-        y =  (y-y_mu )/y_sig
+        if alg ==1:
+            X =  (X - x_mu )/x_sig
+            y = y - y_mu
+        else:
+            X = X - x_mu 
+            x_lnorm = np.zeros(x_sig.shape)
+            for i in range (0,X.shape[1]): 
+                x_lnorm[i] = np.linalg.norm(X[:,i])
+                X[:,i] =  X[:,i] /x_lnorm[i]
+            y = y - y_mu
         # b-1) implement incremental foryward-stagewise
         # b-2) implement cannot-link constraints
-        # d) construct the "path" numpy array
-        (beta,self.path) =  self.ForwardStagewise(X,y,max_iter,epsilon)
+        # d) construct the "path" numpy array 
+        if alg ==1 :
+            (beta,self.path) =  self.ForwardStagewise(X,y,max_iter,epsilon)
+        else: 
+            (beta,self.path) =  self.incremental_ForwardStagewise(X,y,max_iter,epsilon)
         std_factor = np.true_divide(y_sig,x_sig) 
         # c) adjust coefficients for de-normalized X
         for i in range(self.path.shape[0]):
             self.path[i,:] = np.multiply(self.path[i,:],std_factor)
             #rows are taken back to original space
         self.intercept = y_mu
-        self.coef =   np.multiply(np.true_divide(y_sig,x_sig),beta)
+        self.coef =   np.multiply(std_factor,beta)
+        print(self.coef)
 
     def ForwardStagewise(self,X,y,nsteps,delta):
-        """ Implementation of incremental forward stagewise regression 
+        n,m = X.shape 
+        path = np.zeros((nsteps+1,m))
+        beta = np.zeros(m)
+        for s in range(1,nsteps+1):
+            r = y - np.dot(X, beta)
+            mse_min, j_best, gamma_best = np.inf, 0, 0
+            for j in range(m):
+                gamma_j = np.dot(X[:,j], r)/np.dot(X[:,j], X[:,j])
+                mse = np.mean(np.square(r - gamma_j * X[:,j]))
+                if mse < mse_min and not self.is_excluded(j):
+                    mse_min, j_best, gamma_best = mse, j, gamma_j
+            if np.abs(gamma_best) > 0:
+                beta[j_best] += gamma_best * delta
+                self.update_exclusion(j_best)
+            path[s,:] =  beta
+        return (beta,path)
+    def incremental_ForwardStagewise(self,X,y,nsteps,epsilon):
+        """ 
+        Implementation of incremental forward stagewise regression 
         Code structure taken from lecture sldies and class book. 
         Reference:  Hastie,Trevorl et al; Elements of Statistical Learning; Page 64 
-
-
         """
         r = y 
         n,m =  X.shape
         beta = np.zeros(m)
         path =  np.zeros((nsteps+1,m))
         for s in range(1,nsteps+1):
-            corr_best,j_best =  0,0
+            corr_best,j_best =  -1,0
             for j in range(m):
-                xj_norm = np.linalg.norm(X[:,j],2) 
-                r_norm = np.linalg.norm(r,2) 
-                corr_j = np.dot(X[:,j], r)/(xj_norm*r_norm) 
-                if corr_best< corr_j  and not self.is_excluded(j):
-                   j_best,corr_best = j,corr_j 
-                   self.update_exclusion(j)
-            beta[j_best] += delta*np.sign(np.dot(X[:,j],r)) 
+                xj_norm = np.linalg.norm(X[:,j]) 
+                r_norm = np.linalg.norm(r) 
+                corr_j = np.dot(X[:,j], r)/(xj_norm*r_norm) . #calculating correlation of j
+                if  np.abs(corr_j) > corr_best  and not self.is_excluded(j):
+                   j_best,corr_best= j,corr_j
+            delta_j = epsilon*np.sign(np.dot(X[:,j_best],r)) 
+            beta[j_best] +=  delta_j
             path[s,:] =  beta
-            r -= beta[j_best]*X[:,j_best]
+            r  = r - delta_j*X[:,j_best]
+            self.update_exclusion(j_best) 
         return (beta,path)
 
     def update_exclusion(self,selected_var):
